@@ -1,0 +1,55 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '2.0.2'
+    id 'java'
+}
+
+group 'nl.imine.pixelmon'
+version '1.0-SNAPSHOT'
+
+description = """"""
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+shadowJar {
+    relocate 'com.fasterxml.jackson', 'nl.imine.jackson'
+}
+
+configurations {
+    compile.extendsFrom shadow
+}
+
+shadowJar {
+    dependencies {
+        include(dependency('com.fasterxml.jackson.core:jackson-core:2.8.9'))
+        include(dependency('com.fasterxml.jackson.core:jackson-databind:2.8.9'))
+        include(dependency('com.fasterxml.jackson.core:jackson-annotations:2.8.9'))
+        include(dependency('com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.8.9'))
+
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+repositories {
+    maven { url "http://repo.spongepowered.org/maven" }
+    maven { url "http://repo.maven.apache.org/maven2" }
+}
+
+dependencies {
+    compile group: 'org.spongepowered', name: 'spongeapi', version:'7.0.0'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version:'2.8.9'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version:'2.8.9'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version:'2.8.9'
+    compile group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jdk8', version:'2.8.9'
+    compile group: 'junit', name: 'junit', version:'4.12'
+}
+
+build.dependsOn(shadowJar)
+jar.enabled = false
