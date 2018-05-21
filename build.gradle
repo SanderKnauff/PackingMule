@@ -52,4 +52,4 @@ dependencies {
 }
 
 build.dependsOn(shadowJar)
-jar.enabled = false
+jar.enabled = true
