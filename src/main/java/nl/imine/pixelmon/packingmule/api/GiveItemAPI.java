@@ -8,6 +8,7 @@ import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStack;
+import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.entity.Hotbar;
 import org.spongepowered.api.item.inventory.entity.MainPlayerInventory;
 import org.spongepowered.api.item.inventory.query.QueryOperationTypes;
@@ -95,9 +96,10 @@ public class GiveItemAPI {
 
     private void giveItemInBag(Player player, ItemStack itemStack) {
         getCategoryFromItemStack(itemStack).ifPresent(bagCategory -> {
+            ItemStackSnapshot itemStackSnapshot = itemStack.createSnapshot();
             if (!isAnyItemFromCategoryAlreadyInPlayerInventory(player, bagCategory))
-                giveItemInInventory(player, itemStack);
-            addItemToPlayerBag(player, bagCategory, itemStack);
+                giveItemInInventory(player, itemStackSnapshot.createStack());
+            addItemToPlayerBag(player, bagCategory, itemStackSnapshot.createStack());
         });
     }
 
