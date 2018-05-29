@@ -2,13 +2,15 @@ package nl.imine.pixelmon.packingmule.api;
 
 import nl.imine.pixelmon.packingmule.bag.BagCategory;
 import nl.imine.pixelmon.packingmule.bag.BagContents;
+import nl.imine.pixelmon.packingmule.bag.item.ItemReward;
+import nl.imine.pixelmon.packingmule.bag.item.SpecializedItemReward;
 import nl.imine.pixelmon.packingmule.service.CategoryRepository;
 import nl.imine.pixelmon.packingmule.service.PlayerInventoryRepository;
+import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.ItemType;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStack;
-import org.spongepowered.api.item.inventory.ItemStackSnapshot;
 import org.spongepowered.api.item.inventory.entity.Hotbar;
 import org.spongepowered.api.item.inventory.entity.MainPlayerInventory;
 import org.spongepowered.api.item.inventory.query.QueryOperationTypes;
@@ -35,11 +37,22 @@ public class GiveItemAPI {
         return giveItemAPI;
     }
 
-    public void giveItemToPlayer(Player player, ItemStack itemStack) {
-        if (isItemInAnyCategory(itemStack))
-            giveItemInBag(player, itemStack);
+    public void giveItemToPlayer(Player player, String rewardId) {
+        ItemReward itemReward = getItemRewardFromString(rewardId);
+        if (isItemInAnyCategory(rewardId))
+            giveItemInBag(player, (SpecializedItemReward) itemReward);
         else
-            giveItemInInventory(player, itemStack);
+            giveItemInInventory(player, ItemStack.builder().itemType(itemReward.getItemType()).build());
+    }
+
+    private ItemReward getItemRewardFromString(String rewardId) {
+        if (rewardId.contains(":"))
+            return new ItemReward(Sponge.getRegistry().getType(ItemType.class, rewardId).orElseThrow(() -> new IllegalArgumentException("ItemType '" + rewardId + "' was not registered in sponge!")));
+        else
+            return categoryRepository.getAll().stream().flatMap(bagCategory -> bagCategory.getAllowedItems().stream())
+                    .filter(specializedItemReward -> specializedItemReward.getId().equals(rewardId))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Reward '" + rewardId + "' was not registered in any catagory!"));
     }
 
     public boolean playerHasItem(Player player, ItemType itemType) {
@@ -57,26 +70,26 @@ public class GiveItemAPI {
                 ).orElse(false);
     }
 
-    public void removeItemFromPlayer(Player player, ItemStack itemStack) {
-        if (isItemInAnyCategory(itemStack))
-            removeFromBagAndReplaceItem(player, itemStack);
+    public void removeItemFromPlayer(Player player, SpecializedItemReward specializedItemReward) {
+        if (isItemInAnyCategory(specializedItemReward.getId()))
+            removeFromBagAndReplaceItem(player, specializedItemReward);
         else
-            removeFromInventory(player, itemStack);
+            removeFromInventory(player, specializedItemReward.getItemType());
     }
 
-    private void removeFromBagAndReplaceItem(Player player, ItemStack itemStack) {
-        getCategoryFromItemStack(itemStack).ifPresent(bagCategory -> playerInventoryRepository.findOne(player.getUniqueId()).ifPresent(playerInventory -> {
+    private void removeFromBagAndReplaceItem(Player player, SpecializedItemReward specializedItemReward) {
+        getCategoryFromRewardId(specializedItemReward.getId()).ifPresent(bagCategory -> playerInventoryRepository.findOne(player.getUniqueId()).ifPresent(playerInventory -> {
             List<BagContents> bagContents = new ArrayList<>(playerInventory.getBags());
             BagContents bagContent = playerInventory.getBagContents(bagCategory);
             Set<ItemType> items = new HashSet<>(bagContent.getItems());
-            items.remove(itemStack.getType());
+            items.remove(specializedItemReward.getItemType());
             bagContent.setItems(items);
             bagContents.removeIf(contents -> contents.getCategory().equals(bagCategory));
             bagContents.add(bagContent);
             playerInventory.setBags(bagContents);
 
-            if (hasItemInInventory(player, itemStack.getType())) {
-                removeFromInventory(player, itemStack);
+            if (hasItemInInventory(player, specializedItemReward.getItemType())) {
+                removeFromInventory(player, specializedItemReward.getItemType());
                 bagContent.getItems().stream().findAny().ifPresent(itemType ->
                         giveItemInInventory(player, ItemStack.builder().itemType(itemType).build())
                 );
@@ -84,33 +97,34 @@ public class GiveItemAPI {
         }));
     }
 
-    private void removeFromInventory(Player player, ItemStack itemStack) {
-        player.getInventory().query(QueryOperationTypes.ITEM_TYPE.of(itemStack.getType())).clear();
+    private void removeFromInventory(Player player, ItemType itemType) {
+        player.getInventory().query(QueryOperationTypes.ITEM_TYPE.of(itemType)).clear();
     }
 
-    private boolean isItemInAnyCategory(ItemStack itemStack) {
+    private boolean isItemInAnyCategory(String rewardId) {
         return categoryRepository.getAll().stream()
                 .flatMap(bagCategory -> bagCategory.getAllowedItems().stream())
-                .anyMatch(itemStack.getType()::equals);
+                .map(SpecializedItemReward::getId)
+                .anyMatch(rewardId::equals);
     }
 
-    private void giveItemInBag(Player player, ItemStack itemStack) {
-        getCategoryFromItemStack(itemStack).ifPresent(bagCategory -> {
-            ItemStackSnapshot itemStackSnapshot = itemStack.createSnapshot();
+    private void giveItemInBag(Player player, SpecializedItemReward itemReward) {
+        getCategoryFromRewardId(itemReward.getId()).ifPresent(bagCategory -> {
             if (!isAnyItemFromCategoryAlreadyInPlayerInventory(player, bagCategory))
-                giveItemInInventory(player, itemStackSnapshot.createStack());
-            addItemToPlayerBag(player, bagCategory, itemStackSnapshot.createStack());
+                giveItemInInventory(player, itemReward.createItemStack());
+            addItemToPlayerBag(player, bagCategory, itemReward.createItemStack());
         });
     }
 
-    private Optional<BagCategory> getCategoryFromItemStack(ItemStack itemStack) {
+    private Optional<BagCategory> getCategoryFromRewardId(String rewardId) {
         return categoryRepository.getAll().stream()
-                .filter(category -> category.getAllowedItems().contains(itemStack.getType()))
+                .filter(category -> category.getAllowedItems().stream().anyMatch(specializedItemReward -> specializedItemReward.getId().equals(rewardId)))
                 .findAny();
     }
 
     private boolean isAnyItemFromCategoryAlreadyInPlayerInventory(Player player, BagCategory bagCategory) {
         return bagCategory.getAllowedItems().stream()
+                .map(SpecializedItemReward::getItemType)
                 .anyMatch(player.getInventory()::contains);
 
     }
