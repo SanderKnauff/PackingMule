@@ -29,7 +29,6 @@ shadowJar {
         include(dependency('com.fasterxml.jackson.core:jackson-databind:2.8.9'))
         include(dependency('com.fasterxml.jackson.core:jackson-annotations:2.8.9'))
         include(dependency('com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.8.9'))
-
     }
 }
 

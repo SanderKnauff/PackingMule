@@ -7,6 +7,7 @@ import nl.imine.pixelmon.packingmule.bag.BagCategory;
 import nl.imine.pixelmon.packingmule.service.CategoryRepository;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 
 public class BagCategoryDeserializer extends JsonDeserializer<BagCategory> {
@@ -21,7 +22,7 @@ public class BagCategoryDeserializer extends JsonDeserializer<BagCategory> {
     public BagCategory deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         String categoryName = p.getText();
         return categoryService.getAll().stream().filter(c -> categoryName.equals(c.getId())).findFirst().orElseGet(() -> {
-            BagCategory bagCategory = new BagCategory(categoryName, new HashSet<>());
+            BagCategory bagCategory = new BagCategory(categoryName, new ArrayList<>());
             categoryService.addOne(bagCategory);
             return bagCategory;
         });

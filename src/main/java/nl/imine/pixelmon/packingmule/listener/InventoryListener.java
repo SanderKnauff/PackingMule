@@ -5,6 +5,7 @@ import nl.imine.pixelmon.packingmule.bag.BagAdapter;
 import nl.imine.pixelmon.packingmule.bag.BagCategory;
 import nl.imine.pixelmon.packingmule.bag.BagContents;
 import nl.imine.pixelmon.packingmule.bag.PlayerInventory;
+import nl.imine.pixelmon.packingmule.bag.item.ItemReward;
 import nl.imine.pixelmon.packingmule.service.CategoryRepository;
 import nl.imine.pixelmon.packingmule.service.PlayerInventoryRepository;
 import org.slf4j.Logger;
@@ -52,7 +53,9 @@ public class InventoryListener {
     }
 
     private Optional<BagCategory> getCatagoryFromItemType(ItemType itemType) {
-        return categoryService.getAll().parallelStream().filter(bagCategory -> bagCategory.getAllowedItems().contains(itemType)).findFirst();
+        return categoryService.getAll().parallelStream()
+                .filter(bagCategory -> bagCategory.getAllowedItems().stream().map(ItemReward::getItemType).anyMatch(itemType::equals))
+                .findFirst();
     }
 
 }

@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import nl.imine.pixelmon.packingmule.bag.BagCategory;
 import nl.imine.pixelmon.packingmule.bag.PlayerInventory;
+import nl.imine.pixelmon.packingmule.bag.item.SpecializedItemReward;
 import nl.imine.pixelmon.packingmule.service.serialization.BagCategoryDeserializer;
 import nl.imine.pixelmon.packingmule.service.serialization.BagCategorySerializer;
+import nl.imine.pixelmon.packingmule.service.serialization.SpecializedItemRewardDeserializer;
+import nl.imine.pixelmon.packingmule.service.serialization.SpecializedItemRewardSerializer;
 import org.spongepowered.api.entity.living.player.Player;
 
 import java.nio.file.Path;
@@ -29,6 +32,8 @@ public class PlayerInventoryRepository extends AbstractJsonRepository<UUID, Play
         SimpleModule simpleModule = new SimpleModule();
         simpleModule.addSerializer(BagCategory.class, new BagCategorySerializer());
         simpleModule.addDeserializer(BagCategory.class, new BagCategoryDeserializer(categoryService));
+        simpleModule.addSerializer(SpecializedItemReward.class, new SpecializedItemRewardSerializer());
+        simpleModule.addDeserializer(SpecializedItemReward.class, new SpecializedItemRewardDeserializer(categoryService));
         objectMapper.registerModule(simpleModule);
         return objectMapper;
     }

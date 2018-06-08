@@ -2,10 +2,13 @@ package nl.imine.pixelmon.packingmule.api;
 
 import nl.imine.pixelmon.packingmule.bag.BagCategory;
 import nl.imine.pixelmon.packingmule.bag.BagContents;
+import nl.imine.pixelmon.packingmule.bag.PlayerInventory;
 import nl.imine.pixelmon.packingmule.bag.item.ItemReward;
 import nl.imine.pixelmon.packingmule.bag.item.SpecializedItemReward;
 import nl.imine.pixelmon.packingmule.service.CategoryRepository;
 import nl.imine.pixelmon.packingmule.service.PlayerInventoryRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.item.ItemType;
@@ -18,6 +21,8 @@ import org.spongepowered.api.item.inventory.query.QueryOperationTypes;
 import java.util.*;
 
 public class GiveItemAPI {
+
+    private static final Logger logger = LoggerFactory.getLogger(GiveItemAPI.class);
 
     private static GiveItemAPI giveItemAPI;
 
@@ -38,11 +43,15 @@ public class GiveItemAPI {
     }
 
     public void giveItemToPlayer(Player player, String rewardId) {
+        logger.info("Giving item '{}' to player '{}'", rewardId, player.getName());
         ItemReward itemReward = getItemRewardFromString(rewardId);
-        if (isItemInAnyCategory(rewardId))
+        if (isItemInAnyCategory(rewardId)) {
+            logger.info("Item '{}' is not in a category", rewardId);
             giveItemInBag(player, (SpecializedItemReward) itemReward);
-        else
+        } else {
+            logger.info("Item '{}' was not in a category and will be given directly into the inventory", rewardId);
             giveItemInInventory(player, ItemStack.builder().itemType(itemReward.getItemType()).build());
+        }
     }
 
     private ItemReward getItemRewardFromString(String rewardId) {
@@ -81,8 +90,8 @@ public class GiveItemAPI {
         getCategoryFromRewardId(specializedItemReward.getId()).ifPresent(bagCategory -> playerInventoryRepository.findOne(player.getUniqueId()).ifPresent(playerInventory -> {
             List<BagContents> bagContents = new ArrayList<>(playerInventory.getBags());
             BagContents bagContent = playerInventory.getBagContents(bagCategory);
-            Set<ItemType> items = new HashSet<>(bagContent.getItems());
-            items.remove(specializedItemReward.getItemType());
+            List<SpecializedItemReward> items = new ArrayList<>(bagContent.getItems());
+            items.removeIf(rewardInList -> specializedItemReward.getId().equals(rewardInList.getId()));
             bagContent.setItems(items);
             bagContents.removeIf(contents -> contents.getCategory().equals(bagCategory));
             bagContents.add(bagContent);
@@ -91,7 +100,7 @@ public class GiveItemAPI {
             if (hasItemInInventory(player, specializedItemReward.getItemType())) {
                 removeFromInventory(player, specializedItemReward.getItemType());
                 bagContent.getItems().stream().findAny().ifPresent(itemType ->
-                        giveItemInInventory(player, ItemStack.builder().itemType(itemType).build())
+                        giveItemInInventory(player, itemType.createItemStack())
                 );
             }
         }));
@@ -109,10 +118,14 @@ public class GiveItemAPI {
     }
 
     private void giveItemInBag(Player player, SpecializedItemReward itemReward) {
+        logger.info("Adding {} to {}'s bag", itemReward.createItemStack(), player.getName());
         getCategoryFromRewardId(itemReward.getId()).ifPresent(bagCategory -> {
-            if (!isAnyItemFromCategoryAlreadyInPlayerInventory(player, bagCategory))
+            logger.info("Item {}'s  BagCategory is {}", itemReward.createItemStack(), bagCategory.getId());
+            if (!isAnyItemFromCategoryAlreadyInPlayerInventory(player, bagCategory)) {
+                logger.info("Player {} has no item of BagCategory {} in it's inventory yet. Giving the current one", player.getName(), bagCategory.getId());
                 giveItemInInventory(player, itemReward.createItemStack());
-            addItemToPlayerBag(player, bagCategory, itemReward.createItemStack());
+            }
+            addItemToPlayerBag(player, bagCategory, itemReward);
         });
     }
 
@@ -129,18 +142,20 @@ public class GiveItemAPI {
 
     }
 
-    private void addItemToPlayerBag(Player player, BagCategory bagCategory, ItemStack itemStack) {
-        playerInventoryRepository.findOne(player.getUniqueId()).ifPresent(playerInventory -> {
-            BagContents bagContents = playerInventory.getBagContents(bagCategory);
-            Set<ItemType> items = new HashSet<>(bagContents.getItems());
-            items.add(itemStack.getType());
-            bagContents.setItems(items);
-            playerInventoryRepository.addOne(playerInventory);
-        });
+    private void addItemToPlayerBag(Player player, BagCategory bagCategory, SpecializedItemReward specializedItemReward) {
+        logger.info("Adding {} to {}'s {} bag", specializedItemReward.createItemStack(), player.getName(), bagCategory.getId());
+        PlayerInventory playerInventory = playerInventoryRepository.findOne(player.getUniqueId()).orElse(new PlayerInventory(player.getUniqueId(), new ArrayList<>()));
+        logger.info("Adding {} to {}'s player inventory {}", specializedItemReward.createItemStack(), player.getName(), playerInventory);
+        BagContents bagContents = playerInventory.getBagContents(bagCategory);
+        List<SpecializedItemReward> items = new ArrayList<>(bagContents.getItems());
+        items.add(specializedItemReward);
+        bagContents.setItems(items);
+        playerInventoryRepository.addOne(playerInventory);
 
     }
 
     private void giveItemInInventory(Player player, ItemStack itemStack) {
+        logger.info("Adding {} to {}'s inventory", itemStack, player.getName());
         getPlayerCombinedHotbarAndMainInventory(player).offer(itemStack);
     }
 

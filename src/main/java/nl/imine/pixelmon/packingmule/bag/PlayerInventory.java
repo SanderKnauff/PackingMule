@@ -37,7 +37,7 @@ public class PlayerInventory implements Identifyable<UUID> {
                 .filter(bagContents -> bagContents.getCategory().equals(bagCategory))
                 .findAny()
                 .orElseGet(() -> {
-                    BagContents newContents = new BagContents(bagCategory, Collections.emptySet());
+                    BagContents newContents = new BagContents(bagCategory, Collections.emptyList());
                     ArrayList<BagContents> newBags = new ArrayList<>(getBags());
                     newBags.add(newContents);
                     setBags(newBags);

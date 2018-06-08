@@ -2,21 +2,17 @@ package nl.imine.pixelmon.packingmule.bag;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.spongepowered.api.item.ItemType;
-import org.spongepowered.api.item.inventory.ItemStackSnapshot;
+import nl.imine.pixelmon.packingmule.bag.item.SpecializedItemReward;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 public class BagContents {
 
     private final BagCategory category;
-    private Set<ItemType> items;
+    private List<SpecializedItemReward> items;
 
     @JsonCreator
-    public BagContents(@JsonProperty("category") BagCategory category, @JsonProperty("items") Set<ItemType> items) {
+    public BagContents(@JsonProperty("category") BagCategory category, @JsonProperty("items") List<SpecializedItemReward> items) {
         this.category = category;
         this.items = items;
     }
@@ -25,11 +21,11 @@ public class BagContents {
         return category;
     }
 
-    public Set<ItemType> getItems() {
+    public List<SpecializedItemReward> getItems() {
         return items;
     }
 
-    public void setItems(Set<ItemType> items) {
+    public void setItems(List<SpecializedItemReward> items) {
         this.items = items;
     }
 }

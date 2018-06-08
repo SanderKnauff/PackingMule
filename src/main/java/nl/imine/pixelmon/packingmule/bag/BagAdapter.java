@@ -1,8 +1,10 @@
 package nl.imine.pixelmon.packingmule.bag;
 
 import nl.imine.pixelmon.packingmule.PackingMulePlugin;
+import nl.imine.pixelmon.packingmule.bag.item.SpecializedItemReward;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.spongepowered.api.data.key.Keys;
 import org.spongepowered.api.data.type.HandTypes;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.item.inventory.*;
@@ -60,9 +62,7 @@ public class BagAdapter {
                                     break;
                                 default:
                                     clickInventoryEvent.getCause().first(Player.class).ifPresent(player -> {
-                                        if (bagContents.getCategory().getAllowedItems().contains(slotTransaction.getOriginal().getType())) {
-                                            setPlayerActiveItem(player, slotTransaction.getOriginal().getType());
-                                        }
+                                        setPlayerActiveItem(player, bagContents.getItems().get(getArrayIndexFromListSlot(slotIndex.getValue())).createItemStack());
                                     });
                             }
                         }
@@ -83,26 +83,26 @@ public class BagAdapter {
         return bagContents.getItems().size() / containerWidth;
     }
 
-    private void setPlayerActiveItem(Player player, ItemType type) {
-        if (bagContents.getCategory().getAllowedItems().contains(player.getItemInHand(HandTypes.MAIN_HAND).map(ItemStack::getType).orElse(null)))
-            player.setItemInHand(HandTypes.MAIN_HAND, ItemStack.of(type, 1));
+    private void setPlayerActiveItem(Player player, ItemStack itemStack) {
+        if (player.getItemInHand(HandTypes.MAIN_HAND).isPresent() && bagContents.getCategory().getAllowedItems().stream().anyMatch(specializedItemReward -> specializedItemReward.createItemStack().equalTo(player.getItemInHand(HandTypes.MAIN_HAND).get()))) {
+            player.setItemInHand(HandTypes.MAIN_HAND, itemStack);
+        }
     }
 
     private void updateInventory(Inventory inventory) {
         inventory.first().clear();
         addControlButtons(inventory);
-        List<ItemType> bagEntries = new ArrayList<>(bagContents.getItems());
+        List<SpecializedItemReward> bagEntries = new ArrayList<>(bagContents.getItems());
         for (int i = 0; i < bagEntries.size(); i++) {
             if (i < topRowIndex * 8) {
                 //Skip elements if we don't need it for this row
                 continue;
             }
-            ItemType itemType = bagEntries.get(i);
             int rowIndex = (i - (topRowIndex * 8)) / 8;
             int columnIndex = (i - (topRowIndex * 8)) % 8;
 
             inventory.query(QueryOperationTypes.INVENTORY_PROPERTY.of(SlotPos.of(columnIndex, rowIndex)))
-                    .offer(ItemStack.builder().itemType(itemType).build());
+                    .offer(bagEntries.get(i).createItemStack());
 
         }
     }
@@ -112,6 +112,15 @@ public class BagAdapter {
                 .offer(ItemStack.builder().itemType(ItemTypes.STONE_BUTTON).build());
         inventory.query(QueryOperationTypes.INVENTORY_PROPERTY.of(SlotPos.of(8, 5)))
                 .offer(ItemStack.builder().itemType(ItemTypes.STONE_BUTTON).build());
+    }
+
+
+    private static int getListSlotFromArrayIndex(int i) {
+        return i + (i / 8);
+    }
+
+    private static int getArrayIndexFromListSlot(int i) {
+        return i - (i / 9);
     }
 
 }

@@ -16,7 +16,7 @@ public class CategoryRepositoryTest {
     @Test
     public void name() throws Exception {
         categoryRepository.objectCache = new HashMap<>();
-        categoryRepository.objectCache.put("Ali", new BagCategory("ali", Collections.emptySet()));
+        categoryRepository.objectCache.put("Ali", new BagCategory("ali", Collections.emptyList()));
         ObjectMapper objectMapper = categoryRepository.createObjectMapper();
         System.out.println(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(categoryRepository.objectCache));
 
