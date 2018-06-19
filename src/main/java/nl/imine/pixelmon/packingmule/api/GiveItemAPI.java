@@ -64,26 +64,32 @@ public class GiveItemAPI {
                     .orElseThrow(() -> new IllegalArgumentException("Reward '" + rewardId + "' was not registered in any catagory!"));
     }
 
-    public boolean playerHasItem(Player player, ItemType itemType) {
-        return hasItemInInventory(player, itemType) || hasItemInBag(player, itemType);
+
+    private Optional<SpecializedItemReward> getSpecializedItemRewardFromReward(ItemReward itemReward) {
+        return Optional.of(itemReward).filter(SpecializedItemReward.class::isInstance).map(SpecializedItemReward.class::cast);
     }
 
-    private boolean hasItemInInventory(Player player, ItemType itemType) {
-        return player.getInventory().contains(itemType);
+    public boolean playerHasItem(Player player, String rewardId) {
+        Optional<SpecializedItemReward> oSpecializedItemReward = getSpecializedItemRewardFromReward(getItemRewardFromString(rewardId));
+        return oSpecializedItemReward.map(specializedItemReward -> hasItemInInventory(player, specializedItemReward) || hasItemInBag(player, specializedItemReward)).orElse(false);
     }
 
-    private boolean hasItemInBag(Player player, ItemType itemType) {
+    private boolean hasItemInInventory(Player player, SpecializedItemReward itemType) {
+        return player.getInventory().containsAny(itemType.createItemStack());
+    }
+
+    private boolean hasItemInBag(Player player, SpecializedItemReward itemReward) {
         return playerInventoryRepository.getByPlayer(player)
                 .map(inventory ->
-                        inventory.getBags().stream().flatMap(bagContents -> bagContents.getItems().stream()).anyMatch(itemType::equals)
+                        inventory.getBags().stream().flatMap(bagContents -> bagContents.getItems().stream()).anyMatch(itemReward::equals)
                 ).orElse(false);
     }
 
-    public void removeItemFromPlayer(Player player, SpecializedItemReward specializedItemReward) {
-        if (isItemInAnyCategory(specializedItemReward.getId()))
-            removeFromBagAndReplaceItem(player, specializedItemReward);
-        else
-            removeFromInventory(player, specializedItemReward.getItemType());
+    public void removeItemFromPlayer(Player player, String rewardId) {
+        getSpecializedItemRewardFromReward(getItemRewardFromString(rewardId)).ifPresent(itemReward -> {
+            removeFromBagAndReplaceItem(player, itemReward);
+            removeFromInventory(player, itemReward);
+        });
     }
 
     private void removeFromBagAndReplaceItem(Player player, SpecializedItemReward specializedItemReward) {
@@ -97,8 +103,8 @@ public class GiveItemAPI {
             bagContents.add(bagContent);
             playerInventory.setBags(bagContents);
 
-            if (hasItemInInventory(player, specializedItemReward.getItemType())) {
-                removeFromInventory(player, specializedItemReward.getItemType());
+            if (hasItemInInventory(player, specializedItemReward)) {
+                removeFromInventory(player, specializedItemReward);
                 bagContent.getItems().stream().findAny().ifPresent(itemType ->
                         giveItemInInventory(player, itemType.createItemStack())
                 );
@@ -106,8 +112,8 @@ public class GiveItemAPI {
         }));
     }
 
-    private void removeFromInventory(Player player, ItemType itemType) {
-        player.getInventory().query(QueryOperationTypes.ITEM_TYPE.of(itemType)).clear();
+    private void removeFromInventory(Player player, SpecializedItemReward specializedItemReward) {
+        player.getInventory().query(QueryOperationTypes.ITEM_STACK_IGNORE_QUANTITY.of(specializedItemReward.createItemStack())).clear();
     }
 
     private boolean isItemInAnyCategory(String rewardId) {
